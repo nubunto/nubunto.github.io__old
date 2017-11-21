@@ -1,4 +1,4 @@
-Software developer, occasional rambler, highly opinionated.
+A highly opinionated rambler.
 
 I develop software for a living!
 
@@ -12,6 +12,8 @@ Have an idea and want me to build it? Get in touch via [email](mailto:bl.panuto@
 {% endfor %}
 
 # Open Source projects
+
+_Only the ones worth mentioning_
 
 {% for project in site.projects %}
 
