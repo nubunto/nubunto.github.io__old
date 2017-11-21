@@ -1,3 +1,4 @@
+# GraphQL intro: from basic to PostgreSQL
 
 In this post, I'll walk you through building a simple API using GraphQL that persists data on
 PostgreSQL. For that, we'll use the `graphql-js` package and NodeJS. If you decide to jump right into
