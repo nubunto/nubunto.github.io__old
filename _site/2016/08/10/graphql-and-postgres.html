@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/assets/css/style.css?v=d3f5aca2c9eb5b7cd57e8694e7469a8e0c430fbd">
+
+<!-- Begin Jekyll SEO tag v2.3.0 -->
+<title>GraphQL intro: from basic to PostgreSQL | nubunto.github.io</title>
+<meta property="og:title" content="GraphQL intro: from basic to PostgreSQL" />
+<meta name="author" content="Bruno Panuto" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="GraphQL intro: from basic to PostgreSQL" />
+<meta property="og:description" content="GraphQL intro: from basic to PostgreSQL" />
+<link rel="canonical" href="http://localhost:4000/2016/08/10/graphql-and-postgres.html" />
+<meta property="og:url" content="http://localhost:4000/2016/08/10/graphql-and-postgres.html" />
+<meta property="og:site_name" content="nubunto.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-08-10T00:00:00-03:00" />
+<script type="application/ld+json">
+{"name":null,"description":"GraphQL intro: from basic to PostgreSQL","author":{"@type":"Person","name":"Bruno Panuto"},"@type":"BlogPosting","url":"http://localhost:4000/2016/08/10/graphql-and-postgres.html","publisher":null,"image":null,"headline":"GraphQL intro: from basic to PostgreSQL","dateModified":"2016-08-10T00:00:00-03:00","datePublished":"2016-08-10T00:00:00-03:00","sameAs":null,"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2016/08/10/graphql-and-postgres.html"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <h1>nubunto.github.io</h1>
+        <h2></h2>
+
+        <section id="downloads">
+          
+          <a href="http://github.com/nubunto/nubunto.github.io" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <h1 id="graphql-intro-from-basic-to-postgresql">GraphQL intro: from basic to PostgreSQL</h1>
+
+<p>In this post, I’ll walk you through building a simple API using GraphQL that persists data on
+PostgreSQL. For that, we’ll use the <code class="highlighter-rouge">graphql-js</code> package and NodeJS. If you decide to jump right into
+the code, you can take a look at the repository I created with the <a href="https://github.com/nubunto/rickandmorty_friends">final version of the code described here</a>.</p>
+
+<p>I assume that the reader is somewhat familiar with GraphQL terminology (e.g. Queries, Mutations and Input Types)
+and also has experience with both NodeJS (especially yarn) and a relational database.</p>
+
+<p>If the reader is not familiar with GraphQL, I suggest reading <a href="https://graphql.org/learn">their website</a> first.</p>
+
+<p>Let’s discuss and present some of the technologies we’ll be using in this post.</p>
+
+<h1 id="graphql">GraphQL</h1>
+
+<p>GraphQL stands as a typed query language for APIs. It is meant to be an improvement from REST,
+although it is concise enough to sit together with an existing one or, even, be put in front of one.</p>
+
+<p>GraphQL lets you make queries for data, and returns you specifically what you asked for. Nothing more, 
+nothing less. Let’s take a look:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  user {
+    id
+    name
+    email
+  }
+}
+</code></pre></div></div>
+
+<p>This is a hypothetical GraphQL query, in a shorthand notation. An response from the API server could be something
+along the lines of:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "John McCarthy",
+      "email": "john@somewhere.com"
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>Plain old JSON, resembling very closely what we specified in our request.
+There are other aspects of GraphQL which we’ll get to know during the building of our application, but for now, this is all I’ll show.</p>
+
+<h1 id="nodejs">NodeJS</h1>
+
+<p>NodeJS is well known in the programming large. It is a port of the Google Chrome V8 JavaScript engine, and is used by large companies worldwide.
+With it, we’ll be able to spawn a HTTP server that will handle our GraphQL requests and send responses.</p>
+
+<p>We’ll be using the latest version of node (v7.4.0 as of writing).</p>
+
+<h2 id="koa">Koa</h2>
+
+<p>I won’t be sticking with express for HTTP, but koa. The reason being I believe koa to be more idiomatic and easier to follow in general
+given it’s generator-based nature, as opposed to callbacks. That being said, it shouldn’t be hard to move from koa to express, since there
+are packages that support GraphQL for express.</p>
+
+<h1 id="postgresql">PostgreSQL</h1>
+
+<p>A robust, rock-solid relational database. Nothing more to be said.</p>
+
+<h1 id="what-well-be-building">What we’ll be building</h1>
+
+<p>If you’re not a fan of Rick &amp; Morty, I expect you to walk out of this blog post as one. We’ll be modelling their Universe (Multiverse, to be precise),
+by creating a database of characters and their respective friends (Adult Swim, give me free stuff). We’ll go from SQL statements, modelling our relational database, to the GraphQL spec. Hopefully, this will
+give a feeling of how to write an application that does something real, and not (too much) contrived.</p>
+
+<p>Let’s get started, then!</p>
+
+<h1 id="our-database-models">Our database models</h1>
+
+<p>I won’t be covering PostgreSQL installation here, as that can be a bit lengthy and change from case-to-case, but I’ll give you a hint: install <a href="https://docker.com">docker</a>
+and start a database using <a href="https://hub.docker.com/_/postgres">the official PostgreSQL docker image</a>. Then, you can have a PostgreSQL database up and running
+by using this command:</p>
+
+<p><code class="highlighter-rouge">$ docker run --name rickandmortypostgres -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rickandmorty -d postgres:9.6.1-alpine</code></p>
+
+<p>I’m using the 9.6.1-alpine version of Docker. The “alpine” part means that this container is running in a Alpine Linux OS, which actually counts towards a smaller image and, as a consequence,
+faster to download. If you wish to install PostgreSQL locally, please stick to the 9.6 version, since that version is the latest as of this writing. I can’t guarantee any of the statements to work
+on newer versions, although they are very simple and you shouldn’t have problems.</p>
+
+<p><em>Note: Our user <strong>and</strong> password will be <code class="highlighter-rouge">postgres</code>. Do <strong>NOT</strong> use this in production. Protect your database carefully.</em></p>
+
+<p>Once we have a database setup and running, we can create the Rick &amp; Morty database from the command line:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>createdb -U postgres rickandmorty
+</code></pre></div></div>
+<p><em>Note: you can skip the above if using Docker, as we provided <code class="highlighter-rouge">rickandmorty</code> to it as the default database.</em></p>
+
+<p>If you have a running PostgreSQL instance on your machine, you already have the <code class="highlighter-rouge">psql</code> command line utility, so you can use that to connect to your instance.</p>
+
+<p>If you have PostgreSQL running through Docker, you can run this command to get a <code class="highlighter-rouge">psql</code> running on your database:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ docker run -it --rm --link rickandmortypostgres:postgres postgres:9.6.1-alpine psql -d rickandmorty -h rickandmorty -U postgres
+</code></pre></div></div>
+
+<p>We can now start by creating our tables:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE character (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL
+)
+
+CREATE TABLE friend (
+  id SERIAL PRIMARY KEY,
+  character_id INTEGER REFERENCES character (id)
+  friend_id INTEGER REFERENCES character (id)
+)
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">character</code> table contains the ID and name of our characters. Every character has many friends, so on the <code class="highlighter-rouge">friend</code> table, we have an foreign key to
+the respective character and its friends.</p>
+
+<p>Let’s take this model for a spin first, to validate our assumptions and to also provide some seed data:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSERT INTO character (name)
+  VALUES ('Rick Sanchez'), 
+	 ('Morty Smith'),
+	 ('Beth Sanchez'),
+	 ('Jerry Smith'),
+	 ('Summer Smith');
+
+INSERT INTO friend (character_id, friend_id) 
+VALUES (1, 2),
+       (1, 3), 
+       (1, 5), 
+       (2, 3), 
+       (2, 4), 
+       (2, 5), 
+       (3, 1), 
+       (3, 2), 
+       (3, 4), 
+       (3, 5),
+       (4, 2),
+       (4, 3),
+       (4, 5),
+       (5, 1),
+       (5, 2),
+       (5, 3),
+       (5, 4);
+</code></pre></div></div>
+
+<p>We modeled our relationship graph that looks like this:</p>
+
+<p>Rick is friends with Morty, Beth and Summer. He despises Jerry.</p>
+
+<p>Morty is friends with Rick, Beth, Jerry and Summer. After all, they are his family.</p>
+
+<p>Beth is friends with Rick, Morty, Jerry and Summer.</p>
+
+<p>Jerry is friends with Morty, Beth and Summer. He doesn’t like Rick.</p>
+
+<p>Great, now let’s select all of Rick Sanchez friends:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SELECT
+  c.name as 'Character Name', f.name as 'Friend name'
+FROM
+  character c
+  JOIN friend ff ON c.id = ff.character_id
+  JOIN character f ON f.id = ff.friend_id
+WHERE
+  name = 'Rick Sanchez'
+</code></pre></div></div>
+
+<p>And, sure enough, here are our results:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> Character Name | Friend name  
+----------------+--------------
+ Rick Sanchez   | Morty Smith
+ Rick Sanchez   | Beth Sanchez
+ Rick Sanchez   | Summer Smith
+(3 rows)
+
+</code></pre></div></div>
+
+<p>Our schema is ready! Let’s move on to the part where we <em>burp</em> actually go through with this stuff, y’know.</p>
+
+<h1 id="building-our-graphql-schema">Building our GraphQL Schema</h1>
+
+<p>Let’s take a moment to think about what our GraphQL schema will look like.
+What I want to be able to do is something along the lines of:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  characters {
+    name
+    friends {
+      name
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>And get something like this back:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "characters": [
+      {
+	"name": "Rick Sanchez",
+	"friends": [
+	  { "name": "Morty Smith" },
+	  { "name": "Beth Sanchez" },
+	  { "name": "Summer Smith" }
+	]
+      },
+      {
+	"name": "Morty Smith",
+	"friends": [
+	  { "name": "Rick Sanchez" },
+	  { "name": "Beth Sanchez" },
+	  { "name": "Jerry Smith" },
+	  { "name": "Summer Smith" }
+	]
+      },
+      {
+	"name": "Beth Sanchez",
+	"friends": [
+	  { "name": "Rick Sanchez" },
+	  { "name": "Morty Smith" },
+	  { "name": "Jerry Smith" },
+	  { "name": "Summer Smith" }
+	]
+      },
+      {
+	"name": "Jerry Smith",
+	"friends": [
+	  { "name": "Morty Smith" },
+	  { "name": "Beth Sanchez" },
+	  { "name": "Summer Smith" }
+	]
+      },
+      {
+	"name": "Summer Smith",
+	"friends": [
+	  { "name": "Rick Sanchez" },
+	  { "name": "Morty Smith" },
+	  { "name": "Beth Sanchez" },
+	  { "name": "Jerry Smith" },
+	]
+      }
+    ]
+  }
+}
+</code></pre></div></div>
+
+<p>As it stands right now, we can start seeing the first real benefit of GraphQL.</p>
+
+<p>In a REST API that was equivalent of this, we would probably have to make 1 request to get all the characters,
+<strong>and</strong> we would also need to make N requests to fetch each friend of <strong>each</strong> character. In this case, the total
+count of requests would be <strong>6 requests</strong> in order to fetch all of this data (1 for all + 1 for each character returned from the previous request).
+Also, we would have to iterate the returned characters, and making a request for each character <code class="highlighter-rouge">id</code> we found.</p>
+
+<p>Something along the lines of</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ curl http://localhost:8080/characters
+$ curl http://localhost:8080/characters/1/friends
+$ curl http://localhost:8080/characters/2/friends
+# and so on.
+</code></pre></div></div>
+
+<p>GraphQL can do all this in one bite.</p>
+
+<p>Other real benefit is that by just looking at our request, we can make pretty good guesses at what our return will look like. With REST, we have
+no idea what the server will return, having to resort at a (hopefully <em>existent</em>) documentation somewhere.</p>
+
+<p>Other real benefit is that we don’t have lingering fields we don’t use. If we don’t care, say, to a potential slow field, e.g. our <code class="highlighter-rouge">friends</code> field,
+the server won’t have to make any efforts to give us that.</p>
+
+<p>In the end, in one simple request, we could highlight 3 real benefits of GraphQL over standard REST APIs. Let’s continue.</p>
+
+<p>We can also query for individual characters:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  character(id: 1) {
+    name
+  }
+}
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "character": {
+      "name": "Rick Sanchez"
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>And I think that’s enough of our implementation for now.</p>
+
+<p>Now that we have an idea of what we kinda want, let’s begin the implementation!</p>
+
+<h1 id="project-structure">Project structure</h1>
+
+<p>We will now create our project structure. Let’s set that up right now:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mkdir friends &amp;&amp; cd friends
+$ touch index.js
+$ mkdir src &amp;&amp; touch src/schema.js &amp;&amp; touch src/services.js
+</code></pre></div></div>
+
+<p>Let’s start an application using <code class="highlighter-rouge">yarn init</code>. Our project tree should look like this:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.
+├── index.js
+├── package.json
+└── src
+    ├── schemas.js
+    └── services.js
+</code></pre></div></div>
+
+<p>Let’s start from the beginning, defining a simple GraphQL endpoint on <code class="highlighter-rouge">index.js</code> so we can get these tires kicking.</p>
+
+<p>So fire up <code class="highlighter-rouge">index.js</code> on your favourite editor and let’s dive in to the code:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const koa = require('koa')
+const logger = require('koa-logger')
+const graphqlHTTP = require('koa-graphql')
+const mount = require('koa-mount')
+const { buildSchema } = require('graphql')
+
+const app = koa()
+
+// let's start with a simple schema
+const schema = buildSchema(`
+	type Query {
+		hello: String!
+	}
+`)
+
+// let's define our root query object
+const root = {
+	hello: () =&gt; {
+		return 'hello world'
+	}
+}
+
+// mount and use stuff
+app.use(logger())
+app.use(mount('/graphql', graphqlHTTP({
+	schema: schema,
+	rootValue: root,
+	graphiql: true
+})))
+
+app.listen(8080)
+console.log('GraphQL app listening on 127.0.0.1:8080/graphql')
+</code></pre></div></div>
+
+<p>If you point your browser to <code class="highlighter-rouge">http://127.0.0.1:8080/graphql</code>, you’ll see a GraphiQL (notice the “i”?) interface. You can type:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  hello
+}
+</code></pre></div></div>
+
+<p>And get back:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "hello": "hello world"
+  }
+}
+</code></pre></div></div>
+
+<p>Congratulations! You have your first GraphQL server up and running in no time!</p>
+
+<p>Let’s get to the serious business now.</p>
+
+<h1 id="designing-our-schema">Designing our schema</h1>
+
+<p>We can’t live on top of <code class="highlighter-rouge">buildSchema</code> all the time. It’s time give our schema a face! Let’s start by slightly modifying our <code class="highlighter-rouge">index.js</code>:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const koa = require('koa')
+const logger = require('koa-logger')
+const graphqlHTTP = require('koa-graphql')
+const mount = require('koa-mount')
+const { RickAndMortySchema } = require('./src/schemas.js')
+
+const app = koa()
+
+app.use(logger())
+app.use(mount('/graphql', graphqlHTTP({
+	schema: schema,
+	graphiql: true
+})))
+
+app.listen(8080)
+console.log('GraphQL app listening on 127.0.0.1:8080/graphql')
+</code></pre></div></div>
+
+<p>We removed the reference to <code class="highlighter-rouge">buildSchema</code> imported from <code class="highlighter-rouge">graphql</code> and replaced it with a <code class="highlighter-rouge">RickAndMortySchema</code> that we’ll soon code. We also removed
+the reference to a root object, since we will define one in <code class="highlighter-rouge">RickAndMortySchema</code> in a second.</p>
+
+<p>With that in our plate, let’s fire up <code class="highlighter-rouge">src/schemas.js</code> and start coding:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const {
+	GraphQLInt,
+	GraphQLString,
+	GraphQLList,
+	GraphQLObjectType,
+	GraphQLSchema,
+} = require('graphql')
+
+const characterStore = [
+	{
+		id: 1,
+		name: 'Rick'
+	},
+	{
+		id: 2,
+		name: 'Morty'
+	},
+	{
+		id: 3,
+		name: 'Summer'
+	},
+	{
+		id: 4,
+		name: 'Beth'
+	},
+	{
+		id: 5,
+		name: 'Jerry'
+	},
+]
+
+const friendsStore = [
+	[characterStore[1], characterStore[2], characterStore[3]],
+	[characterStore[0], characterStore[2], characterStore[3], characterStore[4]],
+	[characterStore[0], characterStore[1], characterStore[3], characterStore[4]],
+	[characterStore[0], characterStore[1], characterStore[2], characterStore[4]],
+	[characterStore[1], characterStore[2], characterStore[3]],
+]
+
+const Character = new GraphQLObjectType({
+	name: 'CharacterSchema',
+	description: 'Defines a Rick and Morty character',
+	fields: () =&gt; ({
+		id: { type: GraphQLInt }, 
+		name: { type: GraphQLString },
+		friends: {
+			type: new GraphQLList(Character),
+			resolve: (character) =&gt; {
+				return friendsStore[character.id - 1]
+			}
+		}
+	})
+})
+
+const Query = new GraphQLObjectType({
+	name: 'RootQuery',
+	fields: () =&gt; ({
+		characters: {
+			type: new GraphQLList(Character),
+			resolve: () =&gt; {
+				return characterStore
+			}
+		},
+		character: {
+			type: Character,
+			args: {
+				id: { type: GraphQLInt }
+			},
+			resolve: (root, { id }) =&gt; {
+				return characterStore.find((character) =&gt; {
+					return character.id === id
+				})
+			}
+		}
+	})
+})
+
+const Schema = new GraphQLSchema({
+	query: Query
+})
+
+module.exports = {
+	RickAndMortySchema: Schema,
+}
+</code></pre></div></div>
+
+<p>There’s quite a few things happening here, so let’s shuffle those 1 on 1:</p>
+
+<ul>
+  <li>We are building our types using GraphQL primitives: <code class="highlighter-rouge">GraphQLInt</code>, <code class="highlighter-rouge">GraphQLString</code>, <code class="highlighter-rouge">GraphQLObjectType</code>, etc.</li>
+  <li>We have a root object, where we define our main queries, which return the types we defined above</li>
+  <li>We have hardcoded the relationships between our characters, in order to show nesting. We will favour PostgreSQL for this in a moment.</li>
+  <li>Each type can have an <code class="highlighter-rouge">resolve</code> function. Take notice of the <code class="highlighter-rouge">friends</code> resolve function. That will not run <strong>unless</strong> we specify it in a GraphQL query.</li>
+</ul>
+
+<p>Allright, that works. Play around a little bit. Try finding friends of friends by nesting, for instance:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  character(id: 1) {
+    name
+    friends {
+      name
+      friends {
+        name
+      }
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>That should give you:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "character": {
+      "name": "Rick",
+      "friends": [
+        {
+          "name": "Morty",
+          "friends": [
+            {
+              "name": "Rick"
+            },
+            {
+              "name": "Summer"
+            },
+            {
+              "name": "Beth"
+            },
+            {
+              "name": "Jerry"
+            }
+          ]
+        },
+        {
+          "name": "Summer",
+          "friends": [
+            {
+              "name": "Rick"
+            },
+            {
+              "name": "Morty"
+            },
+            {
+              "name": "Beth"
+            },
+            {
+              "name": "Jerry"
+            }
+          ]
+        },
+        {
+          "name": "Beth",
+          "friends": [
+            {
+              "name": "Rick"
+            },
+            {
+              "name": "Morty"
+            },
+            {
+              "name": "Summer"
+            },
+            {
+              "name": "Jerry"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>Awesome! We’re almost there. We just need to replace our <code class="highlighter-rouge">characterStore</code> and <code class="highlighter-rouge">friendsStore</code> with our tables in PostgreSQL. Let’s <em>burp</em> get to it!</p>
+
+<h1 id="postgres-at-last">Postgres, at last!</h1>
+
+<p>We need to have a connection with PostgreSQL. That means we need to know:</p>
+
+<ul>
+  <li>Who is the user</li>
+  <li>What is the password</li>
+  <li>Where the address of the database is</li>
+  <li>What database we want</li>
+</ul>
+
+<p>All of that is specified in the <em>connection string</em>. Since we want things to be as easy as possible, let’s take it from an environment variable.</p>
+
+<p>We’ll call it <code class="highlighter-rouge">RM_PGSQL_CONNSTRING</code> (<code class="highlighter-rouge">RM</code> being short of <code class="highlighter-rouge">Rick and Morty</code>).</p>
+
+<p>After that, all we gotta do is make a pooled connection to the PostgreSQL database. Since we’re using koa and, as a consequence, generator functions
+and not callbacks, we’re gonna go with <code class="highlighter-rouge">co-pg</code> instead of <code class="highlighter-rouge">node-postgres</code>. It’s a simple generator API wrapper over <code class="highlighter-rouge">node-postgres</code>.</p>
+
+<p>First, let’s make some changes to the <code class="highlighter-rouge">src/schema.js</code> file:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const { CharacterService } = require('./services.js')
+const {
+	GraphQLInt,
+	GraphQLString,
+	GraphQLList,
+	GraphQLObjectType,
+	GraphQLSchema,
+} = require('graphql')
+
+const Character = new GraphQLObjectType({
+	name: 'CharacterSchema',
+	description: 'Defines a Rick and Morty character',
+	fields: () =&gt; ({
+		id: { type: GraphQLInt }, 
+		name: { type: GraphQLString },
+		friends: {
+			type: new GraphQLList(Character),
+			resolve: (character) =&gt; {
+				return CharacterService.getFriends(character.id)
+			}
+		}
+	})
+})
+
+const Query = new GraphQLObjectType({
+	name: 'RootQuery',
+	fields: () =&gt; ({
+		characters: {
+			type: new GraphQLList(Character),
+			resolve: () =&gt; {
+				return CharacterService.getAll()
+			}
+		},
+		character: {
+			type: Character,
+			args: {
+				id: { type: GraphQLInt }
+			},
+			resolve: (root, { id }) =&gt; {
+				return CharacterService.getOne(id)
+			}
+		}
+	})
+})
+
+const Schema = new GraphQLSchema({
+	query: Query
+})
+
+module.exports = {
+	RickAndMortySchema: Schema,
+}
+</code></pre></div></div>
+
+<p>We removed any reference to <code class="highlighter-rouge">characterStore</code> and <code class="highlighter-rouge">friendsStore</code> and imported a module called <code class="highlighter-rouge">CharacterService</code>.
+As you’d expect, <code class="highlighter-rouge">CharacterService</code> is the service that will reach the underlying data source (in our case, PostgreSQL)
+and retrieve data for us.</p>
+
+<p>Let’s install <code class="highlighter-rouge">co</code>, <code class="highlighter-rouge">co-pg</code> and <code class="highlighter-rouge">pg</code>:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ yarn add co co-pg pg
+</code></pre></div></div>
+
+<p>Fire up <code class="highlighter-rouge">src/services.js</code> and write the following code:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const co = require('co')
+const pg = require('co-pg')(require('pg'))
+
+const config = {
+	connectionString: process.env.RM_PGSQL_CONNSTRING,
+}
+
+function* queryDB(query, args) {
+	const [ client, done ] = yield pg.connectPromise(config.connectionString)
+	const result = yield client.queryPromise(query, args)
+	done()
+	return result
+}
+
+const CharacterService = {
+	getAll() {
+		return co(function* () {
+			const result = yield co(
+			  queryDB('SELECT id, name FROM character')
+			)
+			const characters = result.rows.map((character) =&gt; {
+				return {
+					id: character.id,
+					name: character.name,
+				}
+			})
+			return characters
+		})
+	},
+
+	getOne(characterID) {
+		return co(function* () {
+			const result = yield co(
+			  queryDB('SELECT id, name FROM character WHERE id=$1', [characterID])
+			)
+			const { id, name } = result.rows[0]
+			return {
+				id,
+				name,
+			}
+		})
+	},
+
+	getFriends(characterID) {
+		return co(function* () {
+			const result = yield co(
+			  queryDB('SELECT f.id, f.name FROM character c JOIN friend ff ON c.id = ff.character_id JOIN character f ON f.id = ff.friend_id WHERE c.id = $1',
+	  			  [characterID])
+			)
+			const friends = result.rows.map((friend) =&gt; {
+				return {
+					id: friend.id,
+					name: friend.name,
+				}
+			})
+			return friends
+		})
+	},
+}
+
+module.exports = {
+	CharacterService,
+}
+</code></pre></div></div>
+
+<p>In every call to <code class="highlighter-rouge">queryDB</code>, we pick a client from the pool, run our query, and give back the result. Each function defined in <code class="highlighter-rouge">CharacterService</code> treats it
+accordingly before returning.
+Notice that we actually return an <code class="highlighter-rouge">co</code> function, which works like a Promise. GraphQL knows that it needs to wait on returned promises, which
+alleviates our code writing.</p>
+
+<h1 id="at-last">At last!</h1>
+<p>We’re looking good! After all, we have this code that <em>burp</em> talks to a PostgreSQL database, and fetches all of the relationships of Rick and Morty characters.</p>
+
+<p>But there is no way to insert new characters, nor add relationships to existing characters. Let’s fix that by learning what GraphQL mutations are!</p>
+
+<h1 id="graphql-mutations">GraphQL Mutations</h1>
+
+<p>GraphQL is really simple. It exposes 2 main concepts: Queries and Mutations. Queries return stuff, which is what we’ve been doing all along: reading data from somewhere
+and dumping that somewhere else.
+Mutations, on the other hand, describes data that should be <em>persisted</em> somewhere. It is in no way different than a Query, or different than any other object we’ve dealt with
+so far. Let’s take a look at a GraphQL Mutation example:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># this mutation adds Mr. PoopyButthole to our Character database.
+mutation addMrPoopyButthole {
+  mrPoopyButthole: createCharacter(
+    character: {
+      name: "Mr. PoopyButthole"
+    }
+  ) {
+    id
+    name
+  }
+}
+</code></pre></div></div>
+<p>See how we specify what character we want to create (by using the <code class="highlighter-rouge">character</code> argument) and then we specify what <em>data</em> should be returned to us after this mutation runs.
+So we can create a resource, and cherry-pick any relevant fields from it right away. That’s powerful.</p>
+
+<p>An possible return is:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "mrPoopyButthole": {
+      "id": 30,
+      "name": "Mr. PoopyButthole"
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">mrPoopyButthole: createCharacter</code> bit is what GraphQL calls an <em>alias</em>. It’s just a new name for our returned field on the JSON.</p>
+
+<p>OK, we know what a mutation looks like. Let’s implement one for creating users!
+Fire up <code class="highlighter-rouge">src/schemas.js</code> and after the definition of the <code class="highlighter-rouge">Query</code> object, add this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const CharacterInput = new GraphQLInputObjectType({
+	name: 'CharacterInput',
+	fields: () =&gt; ({
+		name: { type: new GraphQLNonNull(GraphQLString) },
+	})
+})
+
+const Mutation = new GraphQLObjectType({
+	name: 'MutationSchema',
+	fields: () =&gt; ({
+		createCharacter: {
+			type: Character,
+			description: 'Creates a new character',
+			args: {
+				character: { type: CharacterInput },
+			},
+			resolve: (root, { character }) {
+				return CharacterService.createCharacter(character)
+			}
+		}
+	})
+})
+</code></pre></div></div>
+
+<p>Don’t forget to actually import <code class="highlighter-rouge">GraphQLInputObjectType</code> and <code class="highlighter-rouge">GraphQLNonNull</code>:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const {
+	GraphQLInt,
+	GraphQLString,
+	GraphQLList,
+	GraphQLObjectType,
+	GraphQLInputObjectType,
+	GraphQLSchema,
+} = require('graphql')
+</code></pre></div></div>
+
+<p>We created a <code class="highlighter-rouge">Mutation</code> that is one of our old friends, a <code class="highlighter-rouge">GraphQLObjectType</code>. It has a few fields, which we are used to, and a <code class="highlighter-rouge">resolve</code> function,
+which we are also familiar with.</p>
+
+<p>Now, add the <code class="highlighter-rouge">Mutation</code> object to the schema:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>const Schema = new GraphQLSchema({
+	query: Query,
+	mutation: Mutation,
+})
+</code></pre></div></div>
+
+<p>And all that is left to finish this Mutation is actually creating the <code class="highlighter-rouge">CharacterService.createCharacter</code> function. So let’s do that.</p>
+
+<p>Open <code class="highlighter-rouge">src/services.js</code> and after the <code class="highlighter-rouge">getFriends</code> function, add this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>createCharacter(character) {
+	return co(function* () {
+		const result = yield co(queryDB('INSERT INTO character (name) VALUES ($1) RETURNING id', [character.name]))
+		const { id } = result.rows[0]
+		return {
+			id,
+			name: character.name,
+		}
+	})
+},
+</code></pre></div></div>
+
+<p>Now let’s really add Mr. PoopyButthole to our Character database:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mutation {
+  createCharacter(
+    character: {
+      name: "Mr. PoopyButthole"
+    }
+  ) {
+    id
+    name
+  }
+}
+</code></pre></div></div>
+
+<p>We should get as a result:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "data": {
+    "createCharacter": {
+      "id": 6,
+      "name": "Mr. PoopyButthole"
+    }
+  }
+}
+</code></pre></div></div>
+
+<p>Congrats! You officially just created your first GraphQL API!</p>
+
+<h1 id="next-steps">Next steps</h1>
+
+<ul>
+  <li>Most of Rick and Morty characters are aliens from other dimensions. Add <a href="http://graphql.org/learn/schema/#enumeration-types">enums</a> to classify
+them as humans, aliens, animals, gazorpazorpians, etc.</li>
+  <li>Improve searching with a <code class="highlighter-rouge">search</code> endpoint. Allow the user to filter based on the categorization created in the step above.</li>
+  <li>Create a mutation called <code class="highlighter-rouge">addFriendship</code> that, given a <code class="highlighter-rouge">characterID</code> and a <code class="highlighter-rouge">friendID</code> arguments, it persists the friendship on the database.</li>
+  <li>Go watch a Rick and Morty episode, even if you’re already a fan. <em>Adult Swim, give me free stuff</em></li>
+  <li>Ask Dan Harmon on Twitter about Rick and Morty Season 3</li>
+</ul>
+
+<p>You can reach me on <a href="https://twitter.com/panuto_">Twitter</a> if you have any doubts.</p>
+
+<p>See ya!</p>
+
+
+      </section>
+    </div>
+
+    
+  </body>
+</html>

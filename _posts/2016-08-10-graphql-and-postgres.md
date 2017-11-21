@@ -1,3 +1,6 @@
+---
+  title: "GraphQL intro: from basic to PostgreSQL"
+---
 # GraphQL intro: from basic to PostgreSQL
 
 In this post, I'll walk you through building a simple API using GraphQL that persists data on

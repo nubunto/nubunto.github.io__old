@@ -1,1 +1,11 @@
 theme: jekyll-theme-hacker
+title: "Bruno Panuto: Software Developer"
+collections:
+  - projects
+defaults:
+  -
+    scope:
+      path: ""
+      type: posts
+    values:
+      author: "Bruno Panuto"
