@@ -6,6 +6,6 @@ defaults:
   -
     scope:
       path: ""
-      type: posts
+      type: page
     values:
       author: "Bruno Panuto"

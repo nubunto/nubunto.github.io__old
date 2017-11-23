@@ -1,0 +1,31 @@
+---
+---
+<body>
+    <p>A highly opinionated rambler.</p>
+    
+    <p>I develop software for a living!</p>
+    
+    <p>Have an idea and want me to build it? Get in touch via [email](mailto:bl.panuto@gmail.com), or reach me through [twitter](https://twitter.com/panuto_).</p>
+    
+    <h1>Posts</h1>
+    <ul>
+        {% for post in site.posts %}
+        
+        <li><a href="{{ post.url }}">{{post.title}}</a></li>
+        
+        {% endfor %}
+    </ul>
+    
+    <h1>Open Source projects</h1>
+    
+    <em>Only the ones worth mentioning</em>
+    
+    {% for project in site.projects %}
+    
+    <h3>{{project.title}} <a href="{{ project.project_url }}">link</a></h3>
+    
+    <p>{{project.content}}</p>
+    
+    {% endfor %}
+    
+</body>
