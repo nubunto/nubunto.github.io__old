@@ -4,7 +4,7 @@
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/assets/css/style.css?v=c3ae40b9e06c51be6d92fdaa0abfe2ec5cbae808">
+    <link rel="stylesheet" href="/assets/css/style.css?v=cba70abb3d09c8d5689a3cc7bb7d0080e3a38b31">
 
 <!-- Begin Jekyll SEO tag v2.3.0 -->
 <title>GraphQL + Go + Mongo + Docker | Bruno Panuto: Software Developer</title>
@@ -85,7 +85,7 @@
 </span><span class="p">}</span><span class="x">
 </span></code></pre></div></div>
 
-<p>Incrível. Eu marcho pro meu 2º ano de programação com Go e ainda começo projetos inteiros assim.</p>
+<p>Eu marcho pro meu 2º ano de programação com Go e ainda começo projetos inteiros assim.</p>
 
 <p>Vamos ver esse arquivinho compilar. Navegue usando um terminal até seu diretório escolhido acima, e digite:</p>
 
@@ -98,7 +98,19 @@ $ ./graphgo
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>hello, world!
 </code></pre></div></div>
 
-<p>escrito no seu terminal. Se sim, ótimo!</p>
+<p>escrito no seu terminal. Se sim, ótimo! Tudo certo!</p>
+
+<blockquote>
+  <p>Nota: tenha certeza de que, para o próximo passo, você tem uma instalação Go funcional, i.e. uma $GOPATH setada ou Go 1.8+</p>
+</blockquote>
+
+<p>Agora, vamos instalar a lib de servidores GraphQL para Go:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go get github.com/graphql-go/graphql
+</code></pre></div></div>
+
+<p>Se conseguiu baixar sem erros, vamos adicionar um servidor GraphQL mínimo para testarmos!</p>
+
 
       </section>
     </div>
