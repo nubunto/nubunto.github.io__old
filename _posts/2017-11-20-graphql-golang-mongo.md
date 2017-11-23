@@ -49,7 +49,7 @@ func main() {
 }
 ```
 
-Incrível. Eu marcho pro meu 2º ano de programação com Go e ainda começo projetos inteiros assim.
+Eu marcho pro meu 2º ano de programação com Go e ainda começo projetos inteiros assim.
 
 Vamos ver esse arquivinho compilar. Navegue usando um terminal até seu diretório escolhido acima, e digite:
 
@@ -60,4 +60,13 @@ Se tudo der certo, você deve ter visto o seguinte:
 
     hello, world!
 
-escrito no seu terminal. Se sim, ótimo!
+escrito no seu terminal. Se sim, ótimo! Tudo certo!
+
+> Nota: tenha certeza de que, para o próximo passo, você tem uma instalação Go funcional, i.e. uma $GOPATH setada ou Go 1.8+
+
+Agora, vamos instalar a lib de servidores GraphQL para Go:
+
+    $ go get github.com/graphql-go/graphql
+
+Se conseguiu baixar sem erros, vamos adicionar um servidor GraphQL mínimo para testarmos!
+
