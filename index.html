@@ -1,11 +1,20 @@
 ---
+layout: default
 ---
 <body>
-    <p>A highly opinionated rambler.</p>
+    <p>A highly opinionated rambler/developer/nerd.</p>
     
     <p>I develop software for a living!</p>
     
-    <p>Have an idea and want me to build it? Get in touch via [email](mailto:bl.panuto@gmail.com), or reach me through [twitter](https://twitter.com/panuto_).</p>
+    <p>Get in touch!</p>
+    <ul>
+        <li>
+            <a href="mailto:bl.panuto@gmail.com">email</a>
+        </li>
+        <li>
+            <a href="https://twitter.com/panuto_">twitter</a>
+        </li>
+    </ul>
     
     <h1>Posts</h1>
     <ul>
@@ -17,9 +26,7 @@
     </ul>
     
     <h1>Open Source projects</h1>
-    
-    <em>Only the ones worth mentioning</em>
-    
+
     {% for project in site.projects %}
     
     <h3>{{project.title}} <a href="{{ project.project_url }}">link</a></h3>

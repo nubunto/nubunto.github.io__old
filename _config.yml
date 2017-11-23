@@ -6,6 +6,7 @@ defaults:
   -
     scope:
       path: ""
-      type: page
+      type: default
     values:
+      layout: default
       author: "Bruno Panuto"
